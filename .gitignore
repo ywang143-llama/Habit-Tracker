@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
+*.spec
+
+# Personal runtime data
+config.json
+habits.json
+habit_tracker.log
+habits.json.tmp
+config.json.tmp
+*.corrupt-*.json
