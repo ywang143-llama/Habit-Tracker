@@ -13,6 +13,7 @@ files, and gets out of bed with you in the morning.
 - Drag anywhere on the background to move it; the position is saved to
   `config.json` and restored on launch.
 - Daily checklist with circular checkboxes, current-streak badges, and a progress bar.
+- Drag habit rows up or down to reorder them; the order is saved in `habits.json`.
 - Checkmarks reset at midnight, including after sleep/wake or a clock change
   (the app checks the date every 20 seconds).
 - Add and remove habits from a small frameless settings modal (gear icon or tray).
@@ -67,6 +68,8 @@ The installed program is self-contained and does not need Python installed.
 ## Using it
 
 - **Toggle a habit:** click its row or the check circle.
+- **Reorder:** drag a habit row up or down. A blue insertion line shows the drop
+  position; the new order is saved. A click without dragging still toggles.
 - **Move the widget:** drag any non-interactive part of the card.
 - **Minimize:** click the `–` button, left-click the tray icon, or use the tray
   menu. The card hides to the system tray; the menu label changes between
@@ -125,8 +128,9 @@ If `habits.json` cannot be parsed, it is moved to
 python -m unittest discover -s tests -t . -v
 ```
 
-The tests cover streaks, date validation, atomic persistence, corruption
-quarantine, config validation, and BOM tolerance. They do not need a display.
+The tests cover streaks, reordering, date validation, atomic persistence,
+corruption quarantine, config validation, and BOM tolerance. They do not need a
+display.
 
 ## Project layout
 

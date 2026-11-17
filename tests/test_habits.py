@@ -138,6 +138,38 @@ class HabitStoreTests(unittest.TestCase):
         self.assertFalse(self.store.remove(habit.id))
         self.assertEqual(self.store.habits, [])
 
+    def test_move_reorders_and_persists(self) -> None:
+        first = self.store.add("First", TODAY)
+        self.store.add("Second", TODAY)
+        third = self.store.add("Third", TODAY)
+
+        self.assertTrue(self.store.move(third.id, 0))
+        self.assertEqual(
+            [habit.name for habit in self.store.habits],
+            ["Third", "First", "Second"],
+        )
+        self.assertFalse(self.store.move(third.id, 0))
+
+        self.store.save()
+        reloaded = HabitStore(self.path)
+        self.assertEqual(
+            [habit.name for habit in reloaded.habits],
+            ["Third", "First", "Second"],
+        )
+
+        self.assertTrue(self.store.move(third.id, 99))
+        self.assertEqual(
+            [habit.name for habit in self.store.habits],
+            ["First", "Second", "Third"],
+        )
+        self.assertTrue(self.store.move(third.id, -5))
+        self.assertEqual(
+            [habit.name for habit in self.store.habits],
+            ["Third", "First", "Second"],
+        )
+        self.assertFalse(self.store.move("missing", 1))
+        self.assertFalse(self.store.move(first.id, "nope"))  # type: ignore[arg-type]
+
     def test_corrupt_file_is_quarantined(self) -> None:
         self.path.write_text("{ this is not json", encoding="utf-8")
         store = HabitStore(self.path)

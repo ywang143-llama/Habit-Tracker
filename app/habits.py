@@ -203,6 +203,30 @@ class HabitStore:
                 return True
         return False
 
+    def move(self, habit_id: str, new_index: int) -> bool:
+        """Move a habit to a new zero-based position.
+
+        Returns True when the order changed. The caller is responsible for
+        saving the store and refreshing the UI.
+        """
+        habit = self.get(habit_id)
+        if habit is None:
+            return False
+
+        try:
+            new_index = int(new_index)
+        except (TypeError, ValueError):
+            return False
+
+        new_index = max(0, min(new_index, len(self.habits) - 1))
+        current_index = self.habits.index(habit)
+        if new_index == current_index:
+            return False
+
+        self.habits.pop(current_index)
+        self.habits.insert(new_index, habit)
+        return True
+
     def toggle(self, habit_id: str, day: date) -> bool:
         habit = self.get(habit_id)
         if habit is None:

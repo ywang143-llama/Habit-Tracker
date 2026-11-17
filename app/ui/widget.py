@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import tkinter as tk
 from datetime import date
 from typing import Callable, Optional
 
@@ -52,6 +53,10 @@ class FloatingWidget(ctk.CTk):
         self._shape_job: Optional[str] = None
         self._day_job: Optional[str] = None
         self._scale = 1.0
+        self._reorder_id: Optional[str] = None
+        self._reorder_from: Optional[int] = None
+        self._reorder_to: Optional[int] = None
+        self._reorder_indicator: Optional[tk.Frame] = None
 
         self.title("Habit Tracker")
         self.overrideredirect(True)
@@ -270,6 +275,7 @@ class FloatingWidget(ctk.CTk):
 
     # ----------------------------------------------------------------- filling
     def _rebuild(self) -> None:
+        self._clear_reorder()
         for row in self._rows.values():
             row.destroy()
         self._rows.clear()
@@ -293,6 +299,9 @@ class FloatingWidget(ctk.CTk):
                     fonts=self.fonts,
                     max_name_width=max_name_width,
                     command=self._toggle_habit,
+                    on_reorder_start=self._begin_reorder,
+                    on_reorder_move=self._move_reorder,
+                    on_reorder_end=self._end_reorder,
                 )
                 row.pack(fill="x", pady=(0, 2))
                 self._rows[habit.id] = row
@@ -365,6 +374,141 @@ class FloatingWidget(ctk.CTk):
         if habit is not None and row is not None:
             row.set_state(done, habit.streak(self._today))
         self._update_summary()
+
+    # --------------------------------------------------------------- reordering
+    def _begin_reorder(self, habit_id: str) -> None:
+        if self._reorder_id is not None:
+            return
+
+        index = next(
+            (i for i, habit in enumerate(self.habits.habits) if habit.id == habit_id),
+            None,
+        )
+        if index is None:
+            return
+
+        self._reorder_id = habit_id
+        self._reorder_from = index
+        self._reorder_to = index
+        row = self._rows.get(habit_id)
+        if row is not None:
+            row.set_dragging(True)
+        self._ensure_reorder_indicator()
+
+    def _move_reorder(self, y_root: int) -> None:
+        if self._reorder_id is None or self._reorder_from is None:
+            return
+
+        slot = self._reorder_slot(int(y_root))
+        target = slot - 1 if slot > self._reorder_from else slot
+        target = max(0, min(target, len(self.habits.habits) - 1))
+        self._reorder_to = target
+        self._place_reorder_indicator(slot)
+
+    def _end_reorder(self) -> None:
+        habit_id = self._reorder_id
+        original = self._reorder_from
+        target = self._reorder_to
+        self._clear_reorder()
+
+        if habit_id is None or original is None or target is None:
+            return
+        if target == original:
+            return
+        if self.habits.move(habit_id, target):
+            self._save_habits()
+            self._repack_rows()
+
+    def _clear_reorder(self) -> None:
+        if self._reorder_id is not None:
+            row = self._rows.get(self._reorder_id)
+            if row is not None:
+                try:
+                    row.set_dragging(False)
+                except Exception:
+                    pass
+        if self._reorder_indicator is not None:
+            try:
+                self._reorder_indicator.place_forget()
+            except Exception:
+                pass
+        self._reorder_id = None
+        self._reorder_from = None
+        self._reorder_to = None
+
+    def _ordered_rows(self) -> list[HabitRow]:
+        return [
+            self._rows[habit.id]
+            for habit in self.habits.habits
+            if habit.id in self._rows
+        ]
+
+    def _reorder_slot(self, y_root: int) -> int:
+        rows = self._ordered_rows()
+        for index, row in enumerate(rows):
+            center = row.winfo_rooty() + row.winfo_height() // 2
+            if y_root < center:
+                return index
+        return len(rows)
+
+    def _ensure_reorder_indicator(self) -> None:
+        if (
+            self._reorder_indicator is not None
+            and self._reorder_indicator.winfo_exists()
+        ):
+            return
+        self._reorder_indicator = tk.Frame(self._list, bg=theme.ACCENT)
+
+    def _place_reorder_indicator(self, slot: int) -> None:
+        rows = self._ordered_rows()
+        indicator = self._reorder_indicator
+        if not rows or indicator is None or not indicator.winfo_exists():
+            return
+
+        height = max(2, int(round(2 * self._scale)))
+        if slot >= len(rows):
+            y = (
+                rows[-1].winfo_y()
+                + rows[-1].winfo_height()
+                + int(round(1 * self._scale))
+            )
+        else:
+            y = rows[slot].winfo_y() - int(round(2 * self._scale))
+
+        indicator.place(x=0, y=max(0, y), relwidth=1, height=height)
+        indicator.lift()
+
+    def _repack_rows(self) -> None:
+        """Apply the new order without rebuilding (keeps the scroll position)."""
+        canvas = getattr(self._list, "_parent_canvas", None)
+        offset: Optional[float] = None
+        if canvas is not None:
+            try:
+                offset = float(canvas.yview()[0])
+            except Exception:
+                offset = None
+
+        for habit in self.habits.habits:
+            row = self._rows.get(habit.id)
+            if row is not None:
+                row.pack_forget()
+        for habit in self.habits.habits:
+            row = self._rows.get(habit.id)
+            if row is not None:
+                row.pack(fill="x", pady=(0, 2))
+
+        if canvas is not None and offset is not None:
+            self.after_idle(lambda: self._restore_scroll(offset))
+        self._update_summary()
+
+    def _restore_scroll(self, offset: float) -> None:
+        canvas = getattr(self._list, "_parent_canvas", None)
+        if canvas is None:
+            return
+        try:
+            canvas.yview_moveto(offset)
+        except Exception:
+            pass
 
     def _save_habits(self) -> None:
         try:

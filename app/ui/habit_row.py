@@ -24,6 +24,9 @@ class HabitRow(ctk.CTkFrame):
         fonts: theme.Fonts,
         max_name_width: float,
         command: Callable[[str], None],
+        on_reorder_start: Callable[[str], None],
+        on_reorder_move: Callable[[int], None],
+        on_reorder_end: Callable[[], None],
     ) -> None:
         super().__init__(
             master,
@@ -37,9 +40,17 @@ class HabitRow(ctk.CTkFrame):
         self._habit = habit
         self._fonts = fonts
         self._command = command
+        self._on_reorder_start = on_reorder_start
+        self._on_reorder_move = on_reorder_move
+        self._on_reorder_end = on_reorder_end
         self._done = habit.is_done(today)
         self._max_name_width = max_name_width
+        self._pressed = False
+        self._dragging = False
+        self._drag_visual = False
+        self._press_y = 0
         scale = ui_scale(self)
+        self._drag_threshold = max(4, int(round(6 * scale)))
 
         self.grid_columnconfigure(1, weight=1, minsize=0)
         self.grid_rowconfigure(0, weight=1)
@@ -89,7 +100,9 @@ class HabitRow(ctk.CTkFrame):
         self._set_badge(habit.streak(today))
 
         for widget in (self, self._name, self._badge):
-            widget.bind("<Button-1>", self._on_row_clicked)
+            widget.bind("<ButtonPress-1>", self._on_press)
+            widget.bind("<B1-Motion>", self._on_motion)
+            widget.bind("<ButtonRelease-1>", self._on_release)
             widget.bind("<Enter>", self._on_enter)
             widget.bind("<Leave>", self._on_leave)
             try:
@@ -117,21 +130,60 @@ class HabitRow(ctk.CTkFrame):
         self._badge.configure(fg_color=background, text_color=foreground)
 
     # ----------------------------------------------------------------- events
+    def set_dragging(self, dragging: bool) -> None:
+        self._drag_visual = dragging
+        if dragging:
+            self.configure(fg_color=theme.HOVER)
+            self._check.set_background(theme.HOVER)
+        else:
+            self.configure(fg_color="transparent")
+            self._check.set_background(theme.BG)
+
     def _on_check_clicked(self) -> None:
         self._command(self._habit.id)
 
-    def _on_row_clicked(self, _event=None) -> None:
-        self._command(self._habit.id)
+    def _on_press(self, event) -> None:
+        if self._drag_visual:
+            return
+        self._pressed = True
+        self._dragging = False
+        self._press_y = int(event.y_root)
+
+    def _on_motion(self, event) -> None:
+        if not self._pressed:
+            return
+
+        y_root = int(event.y_root)
+        if not self._dragging and abs(y_root - self._press_y) >= self._drag_threshold:
+            self._dragging = True
+            self._on_reorder_start(self._habit.id)
+        if self._dragging:
+            self._on_reorder_move(y_root)
+
+    def _on_release(self, _event) -> None:
+        if not self._pressed:
+            return
+
+        self._pressed = False
+        if self._dragging:
+            self._dragging = False
+            self._on_reorder_end()
+        else:
+            self._command(self._habit.id)
 
     def _on_enter(self, _event=None) -> None:
         self.configure(fg_color=theme.HOVER)
         self._check.set_background(theme.HOVER)
 
     def _on_leave(self, _event=None) -> None:
+        if self._dragging or self._drag_visual:
+            return
         # Moving between children briefly fires Leave; confirm the pointer left.
         self.after(25, self._settle_hover)
 
     def _settle_hover(self) -> None:
+        if self._dragging or self._drag_visual:
+            return
         try:
             x, y = self.winfo_pointerxy()
             widget = self.winfo_containing(x, y)
