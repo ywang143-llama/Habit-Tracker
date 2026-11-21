@@ -21,7 +21,7 @@ from .settings import SettingsWindow
 logger = logging.getLogger(__name__)
 
 _MAX_VISIBLE_ROWS = 7
-_ROW_HEIGHT = 40  # design pixels, including spacing
+_ROW_HEIGHT = 52  # design pixels, including spacing
 
 
 class FloatingWidget(ctk.CTk):
@@ -290,7 +290,7 @@ class FloatingWidget(ctk.CTk):
             self._list.pack(fill="x")
             self._footer.pack(fill="x", pady=(11, 0))
 
-            max_name_width = 168 * self._scale
+            max_name_width = 142 * self._scale
             for habit in self.habits.habits:
                 row = HabitRow(
                     self._list,

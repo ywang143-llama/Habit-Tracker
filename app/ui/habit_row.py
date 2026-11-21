@@ -32,7 +32,7 @@ class HabitRow(ctk.CTkFrame):
             master,
             fg_color="transparent",
             corner_radius=10,
-            height=38,
+            height=50,
         )
         self.grid_propagate(False)
         mark_no_drag(self)
@@ -71,8 +71,12 @@ class HabitRow(ctk.CTkFrame):
         )
 
         display_name = ellipsize(habit.name, fonts.habit, max_name_width)
+
+        self._details = ctk.CTkFrame(self, fg_color="transparent")
+        self._details.grid(row=0, column=1, sticky="ew")
+
         self._name = ctk.CTkLabel(
-            self,
+            self._details,
             text=display_name,
             font=fonts.habit,
             text_color=theme.DONE_TEXT if self._done else theme.TEXT,
@@ -80,11 +84,23 @@ class HabitRow(ctk.CTkFrame):
             height=20,
             fg_color="transparent",
         )
-        self._name.grid(row=0, column=1, sticky="ew", pady=0)
+        self._name.pack(fill="x")
+
+        self._total = ctk.CTkLabel(
+            self._details,
+            text="",
+            font=fonts.small,
+            text_color=theme.MUTED,
+            anchor="w",
+            height=13,
+            fg_color="transparent",
+        )
+        self._total.pack(fill="x")
+        self._update_total()
 
         self._badge = ctk.CTkLabel(
             self,
-            width=36,
+            width=68,
             height=20,
             corner_radius=10,
             font=fonts.badge,
@@ -99,7 +115,7 @@ class HabitRow(ctk.CTkFrame):
         )
         self._set_badge(habit.streak(today))
 
-        for widget in (self, self._name, self._badge):
+        for widget in (self, self._details, self._name, self._total, self._badge):
             widget.bind("<ButtonPress-1>", self._on_press)
             widget.bind("<B1-Motion>", self._on_motion)
             widget.bind("<ButtonRelease-1>", self._on_release)
@@ -118,16 +134,24 @@ class HabitRow(ctk.CTkFrame):
         self._check.set_state(done)
         self._name.configure(text_color=theme.DONE_TEXT if done else theme.TEXT)
         self._set_badge(streak)
+        self._update_total()
+
+    def _update_total(self) -> None:
+        total = self._habit.total_days
+        suffix = "" if total == 1 else "s"
+        self._total.configure(text=f"{total} day{suffix} done")
 
     def _set_badge(self, streak: int) -> None:
-        self._badge.configure(text=f"{streak}d")
         if streak <= 0:
+            text = "no streak"
             background, foreground = theme.STREAK_ZERO_BG, theme.STREAK_ZERO_TEXT
         elif streak < 7:
+            text = f"{streak}d streak"
             background, foreground = theme.STREAK_BG, theme.STREAK_TEXT
         else:
+            text = f"{streak}d streak"
             background, foreground = theme.STREAK_HOT_BG, theme.STREAK_HOT_TEXT
-        self._badge.configure(fg_color=background, text_color=foreground)
+        self._badge.configure(text=text, fg_color=background, text_color=foreground)
 
     # ----------------------------------------------------------------- events
     def set_dragging(self, dragging: bool) -> None:

@@ -72,6 +72,20 @@ class HabitModelTests(unittest.TestCase):
         self.assertIsNone(Habit.from_dict({"name": 5}, "2026-11-15"))
         self.assertIsNone(Habit.from_dict("not a dict", "2026-11-15"))
 
+    def test_total_days_counts_each_completed_date(self) -> None:
+        habit = Habit(
+            id="a",
+            name="Read",
+            created=TODAY.isoformat(),
+            completed=keys(-1, 0),
+        )
+        self.assertEqual(habit.total_days, 2)
+
+        habit.toggle(TODAY + timedelta(days=1))
+        self.assertEqual(habit.total_days, 3)
+        habit.toggle(TODAY + timedelta(days=1))
+        self.assertEqual(habit.total_days, 2)
+
     def test_normalise_name(self) -> None:
         self.assertEqual(normalise_name("  Drink \t water "), "Drink water")
 

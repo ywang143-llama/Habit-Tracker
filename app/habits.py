@@ -70,6 +70,11 @@ class Habit:
     def streak(self, today: date) -> int:
         return calculate_streak(self.completed, today)
 
+    @property
+    def total_days(self) -> int:
+        """Number of distinct days this habit has been completed."""
+        return len(self.completed)
+
     def toggle(self, day: date) -> bool:
         """Flip completion for *day* and return the new state."""
         key = date_key(day)

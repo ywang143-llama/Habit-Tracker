@@ -53,7 +53,8 @@ app/startup.py           shell:startup .lnk creation/removal via PowerShell
 app/win.py               DPI, toolwindow style, rounded region, screen bounds
 app/ui/widget.py         CTk root, header controls, habit list, footer,
                          reorder orchestration
-app/ui/habit_row.py      one row: check, name, streak badge, drag events
+app/ui/habit_row.py      one row: check, name, total-days line, streak badge,
+                         drag events
 app/ui/settings.py       frameless add/remove modal
 app/ui/controls.py       CheckCircle, drag-to-move-window, ellipsize, no-drag
 app/ui/theme.py          colors, dimensions, fonts
@@ -89,8 +90,9 @@ build.ps1                PyInstaller build and optional install
 
 ## Habit reordering
 
-- Drag a row's background, name, or streak badge up/down. A 6-design-pixel
-  vertical threshold separates a click (toggle completion) from a drag.
+- Drag a row's background, name, total-days line, or streak badge up/down. A
+  6-design-pixel vertical threshold separates a click (toggle completion) from a
+  drag.
 - The check circle remains an immediate toggle and does not initiate reordering.
 - `HabitRow` reports `on_reorder_start/move/end` to `FloatingWidget`. The parent
   computes the insertion slot from the row centers, sets the target index, and
@@ -130,6 +132,12 @@ outputs, or the installed/Desktop shortcut. Push only when the user asks.
 
 - Colors, radii, opacity, fonts, and the 322-design-px card width live in
   `app/ui/theme.py`.
+- Each habit row is 50 design px tall (52 including list spacing). The text block
+  has the habit name on top and a muted `N days done` line below it. The streak is
+  a separate colored pill on the right (`3d streak` / `no streak`).
+- Keep streaks and totals visually distinct: amber/orange filled badge for the
+  current streak, quiet muted text for the all-time total. `Habit.total_days` is
+  `len(completed)` (distinct dates); the streak is calculated relative to today.
 - Keep the card quiet: muted metadata, one accent color, amber/orange streak
   badges, danger tint only on destructive hover.
 - Check circles are custom `tk.Canvas` widgets; keep their background synced
